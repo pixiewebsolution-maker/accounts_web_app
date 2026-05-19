@@ -49,7 +49,7 @@ export const dbService = {
         
         if (!data || data.length === 0) {
           // Auto-seed Supabase database table with initial mock data
-          const { error: seedError } = await supabase.from(type).insert(fallback);
+          const { error: seedError } = await supabase.from(type).insert(fallback as any);
           if (seedError) console.warn(`Supabase seeding failed for ${type}:`, seedError);
           return fallback;
         }
@@ -68,7 +68,7 @@ export const dbService = {
     // 1. Supabase
     if (isSupabaseConfigured && supabase) {
       try {
-        const { error } = await supabase.from(type).insert([item]);
+        const { error } = await supabase.from(type).insert([item] as any);
         if (!error) return item;
         console.warn("Supabase add failed:", error);
       } catch (err) {
@@ -88,7 +88,7 @@ export const dbService = {
     // 1. Supabase
     if (isSupabaseConfigured && supabase) {
       try {
-        const { error } = await supabase.from(type).update(updates).eq("id", id);
+        const { error } = await supabase.from(type).update(updates as any).eq("id", id);
         if (!error) return { id, ...updates };
         console.warn("Supabase update failed:", error);
       } catch (err) {
