@@ -1,0 +1,270 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Building2, Eye, EyeOff, Mail, Lock, ArrowRight, Shield, Zap, BarChart3 } from "lucide-react";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
+
+const DEMO_CREDENTIALS = [
+  { role: "Admin", email: "syedfarhanpn@gmail.com", password: "admin123", color: "#6366f1" },
+  { role: "Employee", email: "aryan@agencyos.in", password: "employee123", color: "#10b981" },
+];
+
+export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const router = useRouter();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
+        router.push("/dashboard");
+        return;
+      } catch (err: any) {
+        console.error("Supabase Auth failed, trying fallback demo credentials...", err);
+        // Fallback to local demo credentials to prevent developer lockout
+        const fallback = DEMO_CREDENTIALS.find((c) => c.email === email && c.password === password);
+        if (fallback) {
+          router.push("/dashboard");
+          return;
+        }
+        setError(err.message || "Invalid Supabase credentials.");
+        setLoading(false);
+        return;
+      }
+    }
+
+    // Default mock behavior
+    await new Promise((r) => setTimeout(r, 800));
+    const valid = DEMO_CREDENTIALS.find((c) => c.email === email && c.password === password);
+    if (valid) {
+      router.push("/dashboard");
+    } else {
+      setError("Invalid credentials. Try syedfarhanpn@gmail.com / admin123");
+      setLoading(false);
+    }
+  };
+
+  const fillCredentials = (cred: typeof DEMO_CREDENTIALS[0]) => {
+    setEmail(cred.email);
+    setPassword(cred.password);
+    setError("");
+  };
+
+  return (
+    <div
+      className="min-h-screen flex"
+      style={{ background: "#0a0a0f" }}
+    >
+      {/* Left panel */}
+      <div
+        className="hidden lg:flex flex-col justify-between w-1/2 p-12 relative overflow-hidden"
+        style={{
+          background: "linear-gradient(135deg, #0d0d1a 0%, #12121f 100%)",
+          borderRight: "1px solid rgba(255,255,255,0.05)",
+        }}
+      >
+        {/* Background orbs */}
+        <div
+          className="absolute top-20 left-20 w-64 h-64 rounded-full"
+          style={{
+            background: "radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%)",
+            filter: "blur(40px)",
+          }}
+        />
+        <div
+          className="absolute bottom-20 right-10 w-48 h-48 rounded-full"
+          style={{
+            background: "radial-gradient(circle, rgba(139,92,246,0.12) 0%, transparent 70%)",
+            filter: "blur(30px)",
+          }}
+        />
+
+        {/* Logo */}
+        <div className="relative z-10 flex items-center gap-3">
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center"
+            style={{ background: "linear-gradient(135deg, #6366f1, #7c3aed)", boxShadow: "0 4px 15px rgba(99,102,241,0.4)" }}
+          >
+            <Building2 size={20} color="white" />
+          </div>
+          <div>
+            <span className="font-bold text-white text-xl">AgencyOS</span>
+            <p className="text-xs" style={{ color: "#475569" }}>Business Management Suite</p>
+          </div>
+        </div>
+
+        {/* Hero text */}
+        <div className="relative z-10">
+          <h1
+            className="text-4xl font-black mb-4 leading-tight"
+            style={{
+              background: "linear-gradient(135deg, #f1f5f9, #94a3b8)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}
+          >
+            Manage your agency<br />like a pro
+          </h1>
+          <p className="text-base mb-8" style={{ color: "#64748b" }}>
+            One platform for clients, projects, invoices, expenses, and team management. Built for modern digital agencies.
+          </p>
+          {/* Feature pills */}
+          <div className="space-y-3">
+            {[
+              { icon: <Shield size={16} />, label: "Role-based access control", color: "#6366f1" },
+              { icon: <Zap size={16} />, label: "Real-time project tracking", color: "#10b981" },
+              { icon: <BarChart3 size={16} />, label: "Advanced revenue analytics", color: "#f59e0b" },
+            ].map(({ icon, label, color }) => (
+              <div key={label} className="flex items-center gap-3">
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center"
+                  style={{ background: `${color}20`, color }}
+                >
+                  {icon}
+                </div>
+                <span className="text-sm" style={{ color: "#94a3b8" }}>{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Testimonial */}
+        <div
+          className="relative z-10 p-4 rounded-2xl"
+          style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
+        >
+          <p className="text-sm italic mb-2" style={{ color: "#94a3b8" }}>
+            "AgencyOS transformed how we manage our clients and revenue. It's like having a CFO and PM in one app."
+          </p>
+          <div className="flex items-center gap-2">
+            <div
+              className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white"
+              style={{ background: "linear-gradient(135deg, #6366f1, #7c3aed)" }}
+            >
+              R
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-white">Rohit K.</p>
+              <p className="text-xs" style={{ color: "#475569" }}>Founder, DigitalEdge Studio</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Right panel - Login form */}
+      <div className="flex-1 flex items-center justify-center p-6">
+        <div className="w-full max-w-sm">
+          {/* Mobile logo */}
+          <div className="flex items-center gap-2 mb-8 lg:hidden">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "linear-gradient(135deg, #6366f1, #7c3aed)" }}>
+              <Building2 size={16} color="white" />
+            </div>
+            <span className="font-bold text-white">AgencyOS</span>
+          </div>
+
+          <h2 className="text-2xl font-bold text-white mb-1">Welcome back</h2>
+          <p className="text-sm mb-8" style={{ color: "#475569" }}>Sign in to your agency dashboard</p>
+
+          {/* Demo credentials */}
+          <div className="flex gap-2 mb-6">
+            {DEMO_CREDENTIALS.map((cred) => (
+              <button
+                key={cred.role}
+                onClick={() => fillCredentials(cred)}
+                className="flex-1 py-2 px-3 rounded-xl text-xs font-medium cursor-pointer transition-all"
+                style={{
+                  background: `${cred.color}15`,
+                  color: cred.color,
+                  border: `1px solid ${cred.color}30`,
+                }}
+              >
+                Demo: {cred.role}
+              </button>
+            ))}
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="text-xs font-medium mb-1.5 block" style={{ color: "#475569" }}>Email Address</label>
+              <div className="relative">
+                <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#475569" }} />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@agencyos.in"
+                  style={{ paddingLeft: "2.25rem" }}
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium mb-1.5 block" style={{ color: "#475569" }}>Password</label>
+              <div className="relative">
+                <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#475569" }} />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  style={{ paddingLeft: "2.25rem", paddingRight: "2.5rem" }}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer"
+                  style={{ color: "#475569", background: "transparent", border: "none" }}
+                >
+                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
+            </div>
+
+            {error && (
+              <div
+                className="p-3 rounded-xl text-xs"
+                style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171" }}
+              >
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="btn btn-primary w-full justify-center mt-2"
+              style={{ padding: "0.75rem", fontSize: "0.9rem" }}
+              disabled={loading}
+            >
+              {loading ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  Sign In <ArrowRight size={16} />
+                </>
+              )}
+            </button>
+          </form>
+
+          <p className="text-center text-xs mt-6" style={{ color: "#334155" }}>
+            © 2025 AgencyOS · Built with ♥ for digital agencies
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
