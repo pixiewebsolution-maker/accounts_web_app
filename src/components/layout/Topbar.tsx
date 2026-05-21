@@ -1,10 +1,14 @@
 "use client";
 import { useState } from "react";
 import { Bell, Search, Menu, Moon, Sun, Plus } from "lucide-react";
-import { notifications } from "@/lib/data";
 import { formatDate } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { useLayoutStore } from "@/lib/store";
+
+const notifications = [
+  { id: "n1", title: "Welcome to AgencyOS", message: "Supabase cloud CRM migration has been successfully finalized.", type: "success", read: false, createdAt: new Date().toISOString().split("T")[0] },
+  { id: "n2", title: "Auth Updates", message: "User Sign Up & Password Reset features are now live.", type: "info", read: false, createdAt: new Date().toISOString().split("T")[0] }
+];
 
 interface TopbarProps {
   title: string;
