@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   AreaChart,
   Area,
@@ -36,18 +36,9 @@ import {
   ProgressBar,
   PageWrapper,
 } from "@/components/ui";
-import {
-  dashboardStats,
-  monthlyRevenue,
-  serviceRevenue,
-  clients,
-  projects,
-  invoices,
-  payments,
-  expenses,
-  employees,
-} from "@/lib/data";
+import { dbService } from "@/lib/db";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
+import type { Client, Project, Invoice, Payment, Expense, Employee } from "@/lib/data";
 
 const CHART_COLORS = {
   indigo: "#6366f1",
@@ -82,29 +73,118 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function DashboardPage() {
+  const [clients, setClients] = useState<Client[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [pieMode, setPieMode] = useState<"service" | "ledger">("ledger");
-  const recentInvoices = invoices.slice(0, 5);
-  const activeProjects = projects.filter((p) => p.status === "active");
-  const overdueInvoices = invoices.filter((i) => i.status === "overdue");
 
+  useEffect(() => {
+    const loadAll = async () => {
+      try {
+        const [
+          clientsData,
+          projectsData,
+          invoicesData,
+          paymentsData,
+          expensesData,
+          employeesData,
+        ] = await Promise.all([
+          dbService.getAll("clients"),
+          dbService.getAll("projects"),
+          dbService.getAll("invoices"),
+          dbService.getAll("payments"),
+          dbService.getAll("expenses"),
+          dbService.getAll("employees"),
+        ]);
+        setClients(clientsData);
+        setProjects(projectsData);
+        setInvoices(invoicesData);
+        setPayments(paymentsData);
+        setExpenses(expensesData);
+        setEmployees(employeesData);
+      } catch (err) {
+        console.error("Failed to load dashboard data:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadAll();
+  }, []);
+
+  // Computed analytics
+  const totalRevenue = clients.reduce((s, c) => s + (c.projectCost || 0), 0);
   const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
-  const totalRevenue = dashboardStats.totalRevenue;
+  const totalPaid = payments.filter(p => p.status === "completed").reduce((s, p) => s + p.amount, 0);
+  const pendingPayments = invoices
+    .filter(i => i.status !== "paid")
+    .reduce((s, i) => s + (i.total - i.paidAmount), 0);
+  const activeProjects = projects.filter(p => p.status === "active" || p.status === "in progress");
+  const completedProjects = projects.filter(p => p.status === "completed");
+  const overdueInvoices = invoices.filter(i => i.status === "overdue");
+  const recentInvoices = invoices.slice(0, 5);
 
   const netProfit = totalRevenue - totalExpenses;
   const ledgerBreakdown = [
-    { name: "Net Profit", value: netProfit, color: "#10b981" },
+    { name: "Net Profit", value: Math.max(0, netProfit), color: "#10b981" },
     { name: "Total Expenses", value: totalExpenses, color: "#ef4444" },
   ];
 
-  const pieData = pieMode === "service"
-    ? serviceRevenue.map(s => ({ name: s.service, value: s.revenue, color: s.color }))
-    : ledgerBreakdown;
+  // Monthly revenue chart from payments
+  const monthLabels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const monthlyRevenue = monthLabels.map((month, idx) => {
+    const monthPayments = payments.filter(p => {
+      const d = new Date(p.date);
+      return d.getMonth() === idx;
+    });
+    const monthExpenses = expenses.filter(e => {
+      const d = new Date(e.date);
+      return d.getMonth() === idx;
+    });
+    const rev = monthPayments.reduce((s, p) => s + p.amount, 0);
+    const exp = monthExpenses.reduce((s, e) => s + e.amount, 0);
+    return { month, revenue: rev, expenses: exp, profit: rev - exp };
+  });
+
+  // Service revenue from clients
+  const serviceMap: Record<string, number> = {};
+  clients.forEach(c => {
+    (c.services || []).forEach(s => {
+      serviceMap[s] = (serviceMap[s] || 0) + (c.projectCost || 0);
+    });
+  });
+  const serviceRevenue = Object.entries(serviceMap).map(([service, revenue], i) => ({
+    name: service,
+    value: revenue,
+    color: ["#6366f1", "#8b5cf6", "#10b981", "#f59e0b", "#3b82f6"][i % 5],
+  }));
+
+  const pieData =
+    pieMode === "service"
+      ? serviceRevenue
+      : ledgerBreakdown;
+
+  if (isLoading) {
+    return (
+      <>
+        <Topbar title="Dashboard" subtitle="Loading your data..." onMobileMenu={() => {}} />
+        <PageWrapper>
+          <div className="flex items-center justify-center h-64">
+            <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        </PageWrapper>
+      </>
+    );
+  }
 
   return (
     <>
       <Topbar
         title="Dashboard"
-        subtitle={`Welcome back, Syed Farhan 👋 — ${new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}`}
+        subtitle={`Welcome back 👋 — ${new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}`}
         onMobileMenu={() => {}}
       />
       <PageWrapper>
@@ -113,15 +193,15 @@ export default function DashboardPage() {
           <StatCard
             title="Total Revenue"
             value={formatCurrency(totalRevenue)}
-            change="+12.4% this month"
+            change={`${clients.length} clients`}
             changeType="up"
             gradient="linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.04))"
             icon={<DollarSign size={18} color={CHART_COLORS.indigo} />}
           />
           <StatCard
             title="Pending Payments"
-            value={formatCurrency(dashboardStats.pendingPayments)}
-            change="3 invoices overdue"
+            value={formatCurrency(pendingPayments)}
+            change={`${overdueInvoices.length} overdue`}
             changeType="down"
             gradient="linear-gradient(135deg, rgba(245,158,11,0.12), rgba(217,119,6,0.04))"
             icon={<Clock size={18} color={CHART_COLORS.amber} />}
@@ -129,23 +209,23 @@ export default function DashboardPage() {
           <StatCard
             title="Total Expenses"
             value={formatCurrency(totalExpenses)}
-            change="-3.2% vs last month"
+            change={`${expenses.length} records`}
             changeType="up"
             gradient="linear-gradient(135deg, rgba(239,68,68,0.12), rgba(220,38,38,0.04))"
             icon={<TrendingDown size={18} color={CHART_COLORS.red} />}
           />
           <StatCard
             title="Active Projects"
-            value={String(dashboardStats.activeProjects)}
-            change={`${dashboardStats.completedProjects} completed`}
+            value={String(activeProjects.length)}
+            change={`${completedProjects.length} completed`}
             changeType="neutral"
             gradient="linear-gradient(135deg, rgba(16,185,129,0.12), rgba(5,150,105,0.04))"
             icon={<FolderKanban size={18} color={CHART_COLORS.emerald} />}
           />
           <StatCard
             title="Total Clients"
-            value={String(dashboardStats.totalClients)}
-            change={`+${dashboardStats.newClientsThisMonth} this month`}
+            value={String(clients.length)}
+            change={`${employees.length} employees`}
             changeType="up"
             gradient="linear-gradient(135deg, rgba(59,130,246,0.12), rgba(37,99,235,0.04))"
             icon={<Users size={18} color={CHART_COLORS.blue} />}
@@ -164,7 +244,6 @@ export default function DashboardPage() {
                   className="text-xs"
                   style={{ padding: "0.25rem 0.75rem", width: "auto", background: "rgba(255,255,255,0.05)", borderRadius: 6 }}
                 >
-                  <option>Last 7 months</option>
                   <option>Last 12 months</option>
                 </select>
               }
@@ -316,7 +395,7 @@ export default function DashboardPage() {
                 }
               />
               <div className="space-y-4">
-                {activeProjects.map((proj) => (
+                {activeProjects.slice(0, 3).map((proj) => (
                   <div key={proj.id}>
                     <div className="flex items-center justify-between mb-1.5">
                       <div>
@@ -331,6 +410,9 @@ export default function DashboardPage() {
                     <p className="text-xs mt-1" style={{ color: "#334155" }}>Due {formatDate(proj.dueDate)}</p>
                   </div>
                 ))}
+                {activeProjects.length === 0 && (
+                  <p className="text-xs" style={{ color: "#475569" }}>No active projects</p>
+                )}
               </div>
             </div>
 
@@ -341,10 +423,10 @@ export default function DashboardPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 size={14} color="#10b981" />
-                    <span className="text-xs" style={{ color: "#64748b" }}>Paid this month</span>
+                    <span className="text-xs" style={{ color: "#64748b" }}>Cash received</span>
                   </div>
                   <span className="text-xs font-bold" style={{ color: "#10b981" }}>
-                    {formatCurrency(payments.reduce((s, p) => s + p.amount, 0))}
+                    {formatCurrency(totalPaid)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
@@ -371,7 +453,9 @@ export default function DashboardPage() {
                     <span className="text-xs" style={{ color: "#64748b" }}>Avg. project value</span>
                   </div>
                   <span className="text-xs font-bold text-white">
-                    {formatCurrency(projects.reduce((s, p) => s + p.budget, 0) / projects.length)}
+                    {projects.length > 0
+                      ? formatCurrency(projects.reduce((s, p) => s + p.budget, 0) / projects.length)
+                      : "₹0"}
                   </span>
                 </div>
               </div>

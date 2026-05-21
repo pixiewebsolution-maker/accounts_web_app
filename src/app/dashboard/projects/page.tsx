@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Search,
   Plus,
@@ -20,9 +20,9 @@ import {
 } from "lucide-react";
 import Topbar from "@/components/layout/Topbar";
 import { StatusBadge, PageWrapper, ProgressBar, AvatarGroup } from "@/components/ui";
-import { projects as initialProjects, employees, clients } from "@/lib/data";
+import { dbService } from "@/lib/db";
 import { formatDate, formatCurrency, cn } from "@/lib/utils";
-import type { Project, Task } from "@/lib/data";
+import type { Project, Task, Client, Employee } from "@/lib/data";
 
 const STATUS_FILTERS = ["all", "in progress", "hold", "completed", "demo", "active", "pending"];
 
@@ -998,18 +998,20 @@ function ProjectDrawer({ project, onClose, onUpdate, onRemove }: ProjectDrawerPr
 }
 
 export default function ProjectsPage() {
-  const [projectsList, setProjectsList] = useState<Project[]>(initialProjects);
+  const [projectsList, setProjectsList] = useState<Project[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [view, setView] = useState<"grid" | "table">("grid");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
-  // Form State for Adding Projects
   const [form, setForm] = useState({
-    id: `p${projectsList.length + 1}`,
+    id: "",
     name: "",
-    clientId: clients[0]?.id || "",
+    clientId: "",
     description: "",
     status: "in progress" as Project["status"],
     progress: "0",
@@ -1021,6 +1023,27 @@ export default function ProjectsPage() {
     assignedEmployees: [] as string[],
     requirements: {} as Record<string, boolean>,
   });
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [projectsData, clientsData, employeesData] = await Promise.all([
+          dbService.getAll("projects"),
+          dbService.getAll("clients"),
+          dbService.getAll("employees"),
+        ]);
+        setProjectsList(projectsData);
+        setClients(clientsData);
+        setEmployees(employeesData);
+        setForm(prev => ({ ...prev, clientId: clientsData[0]?.id || "", id: `p_${Date.now()}` }));
+      } catch (err) {
+        console.error("Failed to load projects data:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
+  }, []);
 
   const handleToggleFormService = (srv: string) => {
     const current = form.services.includes(srv)
@@ -1042,22 +1065,15 @@ export default function ProjectsPage() {
     setForm({ ...form, requirements: current });
   };
 
-  const handleAddProject = (e: React.FormEvent) => {
+  const handleAddProject = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name || !form.id || !form.clientId) return;
+    if (!form.name || !form.clientId) return;
 
     const matchedClient = clients.find((c) => c.id === form.clientId);
     const clientName = matchedClient ? matchedClient.company : "Direct Client";
 
-    if (matchedClient && Object.keys(form.requirements).length > 0) {
-      matchedClient.requirements = {
-        ...(matchedClient.requirements || {}),
-        ...form.requirements,
-      };
-    }
-
     const newProject: Project = {
-      id: form.id,
+      id: form.id || `p_${Date.now()}`,
       name: form.name,
       clientId: form.clientId,
       clientName: clientName,
@@ -1074,56 +1090,59 @@ export default function ProjectsPage() {
       tasks: [
         {
           id: `t_${form.id}_1`,
-          projectId: form.id,
+          projectId: form.id || `p_${Date.now()}`,
           title: "Initial specification check & kickoff",
           status: form.status === "completed" ? "completed" : "in progress",
-          assignedTo: form.assignedEmployees[0] || "e1",
+          assignedTo: form.assignedEmployees[0] || (employees[0]?.id || "e1"),
           dueDate: form.dueDate,
           priority: "medium",
         }
       ],
     };
 
-    const updatedList = [...projectsList, newProject];
-    setProjectsList(updatedList);
-    initialProjects.push(newProject);
+    try {
+      await dbService.add("projects", newProject);
+      setProjectsList(prev => [...prev, newProject]);
 
-    setForm({
-      id: `p${updatedList.length + 1}`,
-      name: "",
-      clientId: clients[0]?.id || "",
-      description: "",
-      status: "in progress",
-      progress: "0",
-      budget: "",
-      spent: "0",
-      startDate: new Date().toISOString().split("T")[0],
-      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-      services: [],
-      assignedEmployees: [],
-      requirements: {},
-    });
-    setIsModalOpen(false);
-  };
-
-  const handleUpdateProject = (projectId: string, updates: Partial<Project>) => {
-    setProjectsList(prev => prev.map(p => p.id === projectId ? { ...p, ...updates } : p));
-
-    const idx = initialProjects.findIndex((p) => p.id === projectId);
-    if (idx !== -1) {
-      Object.assign(initialProjects[idx], updates);
+      setForm({
+        id: `p_${Date.now()}`,
+        name: "",
+        clientId: clients[0]?.id || "",
+        description: "",
+        status: "in progress",
+        progress: "0",
+        budget: "",
+        spent: "0",
+        startDate: new Date().toISOString().split("T")[0],
+        dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+        services: [],
+        assignedEmployees: [],
+        requirements: {},
+      });
+      setIsModalOpen(false);
+    } catch (err) {
+      console.error("Failed to add project:", err);
     }
   };
 
-  const handleRemoveProject = (projectId: string) => {
+  const handleUpdateProject = async (projectId: string, updates: Partial<Project>) => {
+    try {
+      await dbService.update("projects", projectId, updates);
+      setProjectsList(prev => prev.map(p => p.id === projectId ? { ...p, ...updates } : p));
+    } catch (err) {
+      console.error("Failed to update project:", err);
+    }
+  };
+
+  const handleRemoveProject = async (projectId: string) => {
     if (confirm("Are you sure you want to remove this project? This will erase all project specs from AgencyOS.")) {
-      setProjectsList((prev) => prev.filter((p) => p.id !== projectId));
-      
-      const idx = initialProjects.findIndex((p) => p.id === projectId);
-      if (idx !== -1) {
-        initialProjects.splice(idx, 1);
+      try {
+        await dbService.delete("projects", projectId);
+        setProjectsList((prev) => prev.filter((p) => p.id !== projectId));
+        setSelectedProject(null);
+      } catch (err) {
+        console.error("Failed to delete project:", err);
       }
-      setSelectedProject(null);
     }
   };
 

@@ -1,5 +1,6 @@
 // ========================
-// TYPES
+// TYPES ONLY — No mock data
+// All data is sourced from Supabase. This file contains only type definitions.
 // ========================
 
 export type UserRole = "admin" | "employee";
@@ -30,7 +31,6 @@ export interface Client {
   assignedEmployees: string[];
   avatar?: string;
   requirements: Record<string, boolean>;
-  // Ledger fields from the user image:
   businessType?: string;
   followUp?: string;
   latestUpdate?: string;
@@ -147,19 +147,12 @@ export interface Notification {
 }
 
 // ========================
-// MOCK DATA
+// SEED DATA
+// Used only for initial Supabase population via the seed script.
+// These are NOT used anywhere in the live application.
 // ========================
 
-export const currentUser: User = {
-  id: "u1",
-  name: "Syed Farhan PN",
-  email: "syedfarhanpn@gmail.com",
-  role: "admin",
-  department: "Management",
-  joinedAt: "2026-01-01",
-};
-
-export const employees: Employee[] = [
+export const seedEmployees: Employee[] = [
   {
     id: "e1",
     name: "Aryan Sharma",
@@ -227,7 +220,7 @@ export const employees: Employee[] = [
   },
 ];
 
-export const clients: Client[] = [
+export const seedClients: Client[] = [
   {
     id: "c1",
     name: "Abijith Krishna",
@@ -377,10 +370,10 @@ export const clients: Client[] = [
     projectCost: 17500,
     paymentReceived: 4000,
     paymentStatus: "Advance",
-  }
+  },
 ];
 
-export const projects: Project[] = [
+export const seedProjects: Project[] = [
   {
     id: "p1",
     name: "Rogue Ninja Website",
@@ -495,181 +488,61 @@ export const projects: Project[] = [
     tasks: [
       { id: "t10", projectId: "p6", title: "Catalogue Integration", status: "in progress", assignedTo: "e3", dueDate: "2026-06-15", priority: "medium" },
     ],
-  }
+  },
 ];
 
-export const invoices: Invoice[] = [
+export const seedInvoices: Invoice[] = [
   {
-    id: "inv1",
-    invoiceNumber: "INV-202604-001",
-    type: "final",
-    clientId: "c1",
-    clientName: "Rogue Ninja",
-    clientEmail: "abijith@rogueninja.in",
-    clientAddress: "Thiruvananthapuram",
-    projectId: "p1",
-    items: [
-      { description: "Travel Portal Development", quantity: 1, rate: 4000, amount: 4000 },
-    ],
-    subtotal: 4000,
-    gstRate: 0,
-    gstAmount: 0,
-    total: 4000,
-    status: "paid",
-    issueDate: "2026-04-15",
-    dueDate: "2026-04-30",
-    paidAmount: 4000,
+    id: "inv1", invoiceNumber: "INV-202604-001", type: "final",
+    clientId: "c1", clientName: "Rogue Ninja", clientEmail: "abijith@rogueninja.in", clientAddress: "Thiruvananthapuram",
+    projectId: "p1", items: [{ description: "Travel Portal Development", quantity: 1, rate: 4000, amount: 4000 }],
+    subtotal: 4000, gstRate: 0, gstAmount: 0, total: 4000, status: "paid", issueDate: "2026-04-15", dueDate: "2026-04-30", paidAmount: 4000,
   },
   {
-    id: "inv2",
-    invoiceNumber: "INV-202604-002",
-    type: "final",
-    clientId: "c2",
-    clientName: "Trishika Salon",
-    clientEmail: "prem@trishikasalon.in",
-    clientAddress: "Kochi",
-    projectId: "p2",
-    items: [
-      { description: "Skincare E-commerce Web Setup", quantity: 1, rate: 4500, amount: 4500 },
-    ],
-    subtotal: 4500,
-    gstRate: 0,
-    gstAmount: 0,
-    total: 4500,
-    status: "paid",
-    issueDate: "2026-04-15",
-    dueDate: "2026-04-30",
-    paidAmount: 4500,
+    id: "inv2", invoiceNumber: "INV-202604-002", type: "final",
+    clientId: "c2", clientName: "Trishika Salon", clientEmail: "prem@trishikasalon.in", clientAddress: "Kochi",
+    projectId: "p2", items: [{ description: "Skincare E-commerce Web Setup", quantity: 1, rate: 4500, amount: 4500 }],
+    subtotal: 4500, gstRate: 0, gstAmount: 0, total: 4500, status: "paid", issueDate: "2026-04-15", dueDate: "2026-04-30", paidAmount: 4500,
   },
   {
-    id: "inv3",
-    invoiceNumber: "INV-202604-003",
-    type: "final",
-    clientId: "c3",
-    clientName: "KERALA MIST",
-    clientEmail: "ajmal@keralamist.in",
-    clientAddress: "Thodupuzha",
-    projectId: "p3",
-    items: [
-      { description: "Corporate Website Launch", quantity: 1, rate: 4500, amount: 4500 },
-    ],
-    subtotal: 4500,
-    gstRate: 0,
-    gstAmount: 0,
-    total: 4500,
-    status: "paid",
-    issueDate: "2026-04-30",
-    dueDate: "2026-04-30",
-    paidAmount: 4500,
+    id: "inv3", invoiceNumber: "INV-202604-003", type: "final",
+    clientId: "c3", clientName: "KERALA MIST", clientEmail: "ajmal@keralamist.in", clientAddress: "Thodupuzha",
+    projectId: "p3", items: [{ description: "Corporate Website Launch", quantity: 1, rate: 4500, amount: 4500 }],
+    subtotal: 4500, gstRate: 0, gstAmount: 0, total: 4500, status: "paid", issueDate: "2026-04-30", dueDate: "2026-04-30", paidAmount: 4500,
   },
   {
-    id: "inv4",
-    invoiceNumber: "INV-202605-001",
-    type: "final",
-    clientId: "c4",
-    clientName: "Ondezyn",
-    clientEmail: "aneesh@ondezyn.in",
-    clientAddress: "Trivandram",
-    projectId: "p4",
-    items: [
-      { description: "Boutique Studio Web Design", quantity: 1, rate: 4500, amount: 4500 },
-    ],
-    subtotal: 4500,
-    gstRate: 0,
-    gstAmount: 0,
-    total: 4500,
-    status: "paid",
-    issueDate: "2026-05-09",
-    dueDate: "2026-05-25",
-    paidAmount: 4500,
+    id: "inv4", invoiceNumber: "INV-202605-001", type: "final",
+    clientId: "c4", clientName: "Ondezyn", clientEmail: "aneesh@ondezyn.in", clientAddress: "Trivandram",
+    projectId: "p4", items: [{ description: "Boutique Studio Web Design", quantity: 1, rate: 4500, amount: 4500 }],
+    subtotal: 4500, gstRate: 0, gstAmount: 0, total: 4500, status: "paid", issueDate: "2026-05-09", dueDate: "2026-05-25", paidAmount: 4500,
   },
   {
-    id: "inv5",
-    invoiceNumber: "INV-202605-002",
-    type: "advance",
-    clientId: "c5",
-    clientName: "Sezo Cabs",
-    clientEmail: "sajad@sezocabs.in",
-    clientAddress: "Kochi",
-    projectId: "p5",
-    items: [
-      { description: "Cab Booking Web (Advance)", quantity: 1, rate: 3000, amount: 3000 },
-    ],
-    subtotal: 3000,
-    gstRate: 0,
-    gstAmount: 0,
-    total: 3000,
-    status: "paid",
-    issueDate: "2026-05-08",
-    dueDate: "2026-05-20",
-    paidAmount: 3000,
+    id: "inv5", invoiceNumber: "INV-202605-002", type: "advance",
+    clientId: "c5", clientName: "Sezo Cabs", clientEmail: "sajad@sezocabs.in", clientAddress: "Kochi",
+    projectId: "p5", items: [{ description: "Cab Booking Web (Advance)", quantity: 1, rate: 3000, amount: 3000 }],
+    subtotal: 3000, gstRate: 0, gstAmount: 0, total: 3000, status: "paid", issueDate: "2026-05-08", dueDate: "2026-05-20", paidAmount: 3000,
   },
   {
-    id: "inv6",
-    invoiceNumber: "INV-202605-003",
-    type: "final",
-    clientId: "c5",
-    clientName: "Sezo Cabs",
-    clientEmail: "sajad@sezocabs.in",
-    clientAddress: "Kochi",
-    projectId: "p5",
-    items: [
-      { description: "Cab Booking Web (Balance)", quantity: 1, rate: 5000, amount: 5000 },
-    ],
-    subtotal: 5000,
-    gstRate: 0,
-    gstAmount: 0,
-    total: 5000,
-    status: "sent",
-    issueDate: "2026-05-20",
-    dueDate: "2026-06-15",
-    paidAmount: 0,
+    id: "inv6", invoiceNumber: "INV-202605-003", type: "final",
+    clientId: "c5", clientName: "Sezo Cabs", clientEmail: "sajad@sezocabs.in", clientAddress: "Kochi",
+    projectId: "p5", items: [{ description: "Cab Booking Web (Balance)", quantity: 1, rate: 5000, amount: 5000 }],
+    subtotal: 5000, gstRate: 0, gstAmount: 0, total: 5000, status: "sent", issueDate: "2026-05-20", dueDate: "2026-06-15", paidAmount: 0,
   },
   {
-    id: "inv7",
-    invoiceNumber: "INV-202605-004",
-    type: "advance",
-    clientId: "c6",
-    clientName: "Sri sai construction company",
-    clientEmail: "contact@srisai.in",
-    clientAddress: "Kochi",
-    projectId: "p6",
-    items: [
-      { description: "Construction Portal (Advance)", quantity: 1, rate: 4000, amount: 4000 },
-    ],
-    subtotal: 4000,
-    gstRate: 0,
-    gstAmount: 0,
-    total: 4000,
-    status: "paid",
-    issueDate: "2026-05-13",
-    dueDate: "2026-05-30",
-    paidAmount: 4000,
+    id: "inv7", invoiceNumber: "INV-202605-004", type: "advance",
+    clientId: "c6", clientName: "Sri sai construction company", clientEmail: "contact@srisai.in", clientAddress: "Kochi",
+    projectId: "p6", items: [{ description: "Construction Portal (Advance)", quantity: 1, rate: 4000, amount: 4000 }],
+    subtotal: 4000, gstRate: 0, gstAmount: 0, total: 4000, status: "paid", issueDate: "2026-05-13", dueDate: "2026-05-30", paidAmount: 4000,
   },
   {
-    id: "inv8",
-    invoiceNumber: "INV-202605-005",
-    type: "final",
-    clientId: "c6",
-    clientName: "Sri sai construction company",
-    clientEmail: "contact@srisai.in",
-    clientAddress: "Kochi",
-    projectId: "p6",
-    items: [
-      { description: "Construction Portal (Balance)", quantity: 1, rate: 13500, amount: 13500 },
-    ],
-    subtotal: 13500,
-    gstRate: 0,
-    gstAmount: 0,
-    total: 13500,
-    status: "sent",
-    issueDate: "2026-05-20",
-    dueDate: "2026-06-30",
-    paidAmount: 0,
-  }
+    id: "inv8", invoiceNumber: "INV-202605-005", type: "final",
+    clientId: "c6", clientName: "Sri sai construction company", clientEmail: "contact@srisai.in", clientAddress: "Kochi",
+    projectId: "p6", items: [{ description: "Construction Portal (Balance)", quantity: 1, rate: 13500, amount: 13500 }],
+    subtotal: 13500, gstRate: 0, gstAmount: 0, total: 13500, status: "sent", issueDate: "2026-05-20", dueDate: "2026-06-30", paidAmount: 0,
+  },
 ];
 
-export const payments: Payment[] = [
+export const seedPayments: Payment[] = [
   { id: "pay1", invoiceId: "inv1", invoiceNumber: "INV-202604-001", clientName: "Rogue Ninja", amount: 4000, method: "upi", date: "2026-04-15", status: "completed" },
   { id: "pay2", invoiceId: "inv2", invoiceNumber: "INV-202604-002", clientName: "Trishika Salon", amount: 4500, method: "upi", date: "2026-04-15", status: "completed" },
   { id: "pay3", invoiceId: "inv3", invoiceNumber: "INV-202604-003", clientName: "KERALA MIST", amount: 4500, method: "bank transfer", date: "2026-04-30", status: "completed" },
@@ -678,7 +551,7 @@ export const payments: Payment[] = [
   { id: "pay6", invoiceId: "inv7", invoiceNumber: "INV-202605-004", clientName: "Sri sai construction company", amount: 4000, method: "bank transfer", date: "2026-05-13", status: "completed" },
 ];
 
-export const expenses: Expense[] = [
+export const seedExpenses: Expense[] = [
   { id: "exp1", category: "domain", description: "Domain Registration - Rogue Ninja", amount: 116, date: "2026-04-15", clientId: "c1", clientName: "Rogue Ninja", projectId: "p1", type: "client-specific" },
   { id: "exp2", category: "domain", description: "Domain Purchase - Trishika Salon", amount: 274, date: "2026-04-15", clientId: "c2", clientName: "Trishika Salon", projectId: "p2", type: "client-specific" },
   { id: "exp3", category: "salary", description: "Contractor Payout - Sandra (Trishika support)", amount: 250, date: "2026-05-10", clientId: "c2", clientName: "Trishika Salon", projectId: "p2", type: "client-specific" },
@@ -686,53 +559,3 @@ export const expenses: Expense[] = [
   { id: "exp5", category: "ads", description: "Facebook Ads manager account setup", amount: 3000, date: "2026-05-08", type: "operational" },
   { id: "exp6", category: "other", description: "Meta Ads course premium learning", amount: 899, date: "2026-05-15", type: "operational" },
 ];
-
-export const notifications: Notification[] = [
-  { id: "n1", title: "Rogue Ninja Fully Paid", message: "Received final payment of ₹4,000 from Rogue Ninja.", type: "success", read: false, createdAt: "2026-04-15T12:00:00Z" },
-  { id: "n2", title: "Course Expense Logged", message: "Logged ₹899 expense for Meta Ads Course purchase.", type: "info", read: false, createdAt: "2026-05-15T15:30:00Z" },
-  { id: "n3", title: "Contract Payout Completed", message: "Paid ₹250 to Sandra for Trishika Salon assistance.", type: "warning", read: true, createdAt: "2026-05-10T10:00:00Z" },
-  { id: "n4", title: "New Advance Received", message: "Sri Sai Construction Company paid ₹4,000 advance.", type: "success", read: false, createdAt: "2026-05-13T09:00:00Z" }
-];
-
-// ========================
-// ANALYTICS DATA
-// ========================
-
-export const monthlyRevenue = [
-  { month: "Jan", revenue: 0, expenses: 0, profit: 0 },
-  { month: "Feb", revenue: 0, expenses: 0, profit: 0 },
-  { month: "Mar", revenue: 0, expenses: 0, profit: 0 },
-  { month: "Apr", revenue: 13000, expenses: 390, profit: 12610 },
-  { month: "May", revenue: 30000, expenses: 8149, profit: 21851 },
-];
-
-export const serviceRevenue = [
-  { service: "Website Dev", revenue: 41000, color: "#6366f1" },
-  { service: "Domain & Setup", revenue: 2000, color: "#8b5cf6" },
-];
-
-export const clientAcquisition = [
-  { month: "Jan", clients: 0 },
-  { month: "Feb", clients: 0 },
-  { month: "Mar", clients: 0 },
-  { month: "Apr", clients: 3 },
-  { month: "May", clients: 3 },
-];
-
-// ========================
-// SUMMARY STATS
-// ========================
-
-export const dashboardStats = {
-  totalRevenue: 43000, // Total project values
-  monthlyRevenue: 24500, // Total payments received (liquid cash)
-  pendingPayments: 18500, // Outstanding balance
-  advanceReceived: 7000, // Advance sums of Active projects (Sezo 3k + Sri Sai 4k)
-  totalExpenses: 8539,
-  profit: 34461, // Net contracted profit (total contract revenue - total expenses)
-  activeProjects: 2,
-  completedProjects: 4,
-  totalClients: 6,
-  newClientsThisMonth: 3,
-};
-

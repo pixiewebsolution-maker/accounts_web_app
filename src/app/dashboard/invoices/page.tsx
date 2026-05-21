@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, Download, Send, Eye, FileText, Filter, Plus, X, Trash2, Edit } from "lucide-react";
 import Topbar from "@/components/layout/Topbar";
 import { StatusBadge, SectionHeader, PageWrapper } from "@/components/ui";
-import { invoices as initialInvoices, clients, projects } from "@/lib/data";
+import { dbService } from "@/lib/db";
 import { formatDate, formatCurrency } from "@/lib/utils";
-import type { Invoice, InvoiceItem } from "@/lib/data";
+import type { Invoice, InvoiceItem, Client } from "@/lib/data";
 
 const TYPE_LABELS: Record<string, string> = {
   quotation: "Quotation",
@@ -479,7 +479,9 @@ function InvoiceDetailModal({ invoice, onClose, onUpdateInvoice }: InvoiceDetail
 }
 
 export default function InvoicesPage() {
-  const [invoicesList, setInvoicesList] = useState<Invoice[]>(initialInvoices);
+  const [invoicesList, setInvoicesList] = useState<Invoice[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -500,6 +502,24 @@ export default function InvoicesPage() {
       { description: "Website Development Fee", quantity: 1, rate: 45000 },
     ],
   });
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [invoicesData, clientsData] = await Promise.all([
+          dbService.getAll("invoices"),
+          dbService.getAll("clients"),
+        ]);
+        setInvoicesList(invoicesData);
+        setClients(clientsData);
+      } catch (err) {
+        console.error("Failed to load invoices data:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
+  }, []);
 
   const handleUpdateFormItem = (index: number, field: string, val: string | number) => {
     const updated = form.items.map((item, idx) => {
@@ -525,7 +545,7 @@ export default function InvoicesPage() {
     });
   };
 
-  const handleAddInvoiceSubmit = (e: React.FormEvent) => {
+  const handleAddInvoiceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.clientCompany || form.items.length === 0) return;
 
@@ -544,7 +564,7 @@ export default function InvoicesPage() {
     const total = subtotal + gstAmount;
 
     const newInvoice: Invoice = {
-      id: `inv${invoicesList.length + 1}`,
+      id: `inv_${Date.now()}`,
       invoiceNumber: form.invoiceNumber,
       type: form.type,
       clientId: cl?.id || `cl-${Date.now()}`,
@@ -564,32 +584,34 @@ export default function InvoicesPage() {
       notes: form.notes || undefined,
     };
 
-    const updated = [newInvoice, ...invoicesList];
-    setInvoicesList(updated);
+    try {
+      await dbService.add("invoices", newInvoice);
+      setInvoicesList(prev => [newInvoice, ...prev]);
 
-    // Sync globally
-    initialInvoices.unshift(newInvoice);
-
-    // Reset state & close
-    setForm({
-      invoiceNumber: `INV-${Date.now().toString().slice(-6)}`,
-      type: "quotation",
-      clientCompany: "",
-      issueDate: new Date().toISOString().split("T")[0],
-      dueDate: new Date(Date.now() + 14 * 24 * 3600 * 1000).toISOString().split("T")[0],
-      status: "draft",
-      gstRate: "18",
-      notes: "",
-      items: [{ description: "Website Development Fee", quantity: 1, rate: 45000 }],
-    });
-    setIsModalOpen(false);
+      // Reset state & close
+      setForm({
+        invoiceNumber: `INV-${Date.now().toString().slice(-6)}`,
+        type: "quotation",
+        clientCompany: "",
+        issueDate: new Date().toISOString().split("T")[0],
+        dueDate: new Date(Date.now() + 14 * 24 * 3600 * 1000).toISOString().split("T")[0],
+        status: "draft",
+        gstRate: "18",
+        notes: "",
+        items: [{ description: "Website Development Fee", quantity: 1, rate: 45000 }],
+      });
+      setIsModalOpen(false);
+    } catch (err) {
+      console.error("Failed to add invoice:", err);
+    }
   };
 
-  const handleUpdateInvoice = (invId: string, updates: Partial<Invoice>) => {
-    setInvoicesList(prev => prev.map(inv => inv.id === invId ? { ...inv, ...updates } : inv));
-    const idx = initialInvoices.findIndex(inv => inv.id === invId);
-    if (idx !== -1) {
-      initialInvoices[idx] = { ...initialInvoices[idx], ...updates };
+  const handleUpdateInvoice = async (invId: string, updates: Partial<Invoice>) => {
+    try {
+      await dbService.update("invoices", invId, updates);
+      setInvoicesList(prev => prev.map(inv => inv.id === invId ? { ...inv, ...updates } : inv));
+    } catch (err) {
+      console.error("Failed to update invoice:", err);
     }
   };
 

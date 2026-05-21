@@ -3,12 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, Eye, EyeOff, Mail, Lock, ArrowRight, Shield, Zap, BarChart3 } from "lucide-react";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase";
-
-const DEMO_CREDENTIALS = [
-  { role: "Admin", email: "syedfarhanpn@gmail.com", password: "admin123", color: "#6366f1" },
-  { role: "Employee", email: "aryan@agencyos.in", password: "employee123", color: "#10b981" },
-];
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -23,44 +18,26 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
 
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        router.push("/dashboard");
-        return;
-      } catch (err: any) {
-        console.error("Supabase Auth failed, trying fallback demo credentials...", err);
-        // Fallback to local demo credentials to prevent developer lockout
-        const fallback = DEMO_CREDENTIALS.find((c) => c.email === email && c.password === password);
-        if (fallback) {
-          router.push("/dashboard");
-          return;
-        }
-        setError(err.message || "Invalid Supabase credentials.");
-        setLoading(false);
-        return;
-      }
+    if (!isSupabaseConfigured || !supabase) {
+      setError("Authentication service is not configured. Please check your environment variables.");
+      setLoading(false);
+      return;
     }
 
-    // Default mock behavior
-    await new Promise((r) => setTimeout(r, 800));
-    const valid = DEMO_CREDENTIALS.find((c) => c.email === email && c.password === password);
-    if (valid) {
+    try {
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (authError) throw authError;
+      if (!data.session) throw new Error("No session returned from authentication.");
+
       router.push("/dashboard");
-    } else {
-      setError("Invalid credentials. Try syedfarhanpn@gmail.com / admin123");
+    } catch (err: any) {
+      setError(err.message || "Invalid email or password. Please try again.");
       setLoading(false);
     }
-  };
-
-  const fillCredentials = (cred: typeof DEMO_CREDENTIALS[0]) => {
-    setEmail(cred.email);
-    setPassword(cred.password);
-    setError("");
   };
 
   return (
@@ -125,7 +102,7 @@ export default function LoginPage() {
           <div className="space-y-3">
             {[
               { icon: <Shield size={16} />, label: "Role-based access control", color: "#6366f1" },
-              { icon: <Zap size={16} />, label: "Real-time project tracking", color: "#10b981" },
+              { icon: <Zap size={16} />, label: "Real-time cloud sync via Supabase", color: "#10b981" },
               { icon: <BarChart3 size={16} />, label: "Advanced revenue analytics", color: "#f59e0b" },
             ].map(({ icon, label, color }) => (
               <div key={label} className="flex items-center gap-3">
@@ -176,25 +153,7 @@ export default function LoginPage() {
           </div>
 
           <h2 className="text-2xl font-bold text-white mb-1">Welcome back</h2>
-          <p className="text-sm mb-8" style={{ color: "#475569" }}>Sign in to your agency dashboard</p>
-
-          {/* Demo credentials */}
-          <div className="flex gap-2 mb-6">
-            {DEMO_CREDENTIALS.map((cred) => (
-              <button
-                key={cred.role}
-                onClick={() => fillCredentials(cred)}
-                className="flex-1 py-2 px-3 rounded-xl text-xs font-medium cursor-pointer transition-all"
-                style={{
-                  background: `${cred.color}15`,
-                  color: cred.color,
-                  border: `1px solid ${cred.color}30`,
-                }}
-              >
-                Demo: {cred.role}
-              </button>
-            ))}
-          </div>
+          <p className="text-sm mb-8" style={{ color: "#475569" }}>Sign in with your Supabase account credentials</p>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
@@ -205,7 +164,7 @@ export default function LoginPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@agencyos.in"
+                  placeholder="you@yourdomain.com"
                   style={{ paddingLeft: "2.25rem" }}
                   required
                 />
@@ -244,11 +203,20 @@ export default function LoginPage() {
               </div>
             )}
 
+            {!isSupabaseConfigured && (
+              <div
+                className="p-3 rounded-xl text-xs"
+                style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.2)", color: "#fbbf24" }}
+              >
+                ⚠️ Supabase is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your .env.local file.
+              </div>
+            )}
+
             <button
               type="submit"
               className="btn btn-primary w-full justify-center mt-2"
               style={{ padding: "0.75rem", fontSize: "0.9rem" }}
-              disabled={loading}
+              disabled={loading || !isSupabaseConfigured}
             >
               {loading ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -261,7 +229,7 @@ export default function LoginPage() {
           </form>
 
           <p className="text-center text-xs mt-6" style={{ color: "#334155" }}>
-            © 2025 AgencyOS · Built with ♥ for digital agencies
+            © 2025 AgencyOS · Powered by Supabase
           </p>
         </div>
       </div>

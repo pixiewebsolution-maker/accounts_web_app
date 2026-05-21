@@ -4,10 +4,9 @@ import { useState, useEffect } from "react";
 import { Search, Plus, X, Trash2, Edit } from "lucide-react";
 import Topbar from "@/components/layout/Topbar";
 import { StatusBadge, PageWrapper } from "@/components/ui";
-import { clients, invoices } from "@/lib/data";
 import { dbService } from "@/lib/db";
 import { formatDate, formatCurrency } from "@/lib/utils";
-import type { Payment } from "@/lib/data";
+import type { Payment, Client, Invoice } from "@/lib/data";
 
 const METHOD_COLORS: Record<string, string> = {
   "bank transfer": "#6366f1",
@@ -19,6 +18,8 @@ const METHOD_COLORS: Record<string, string> = {
 
 export default function PaymentsPage() {
   const [paymentsList, setPaymentsList] = useState<Payment[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -38,8 +39,14 @@ export default function PaymentsPage() {
 
   useEffect(() => {
     const loadPayments = async () => {
-      const data = await dbService.getAll("payments");
-      setPaymentsList(data);
+      const [paymentsData, clientsData, invoicesData] = await Promise.all([
+        dbService.getAll("payments"),
+        dbService.getAll("clients"),
+        dbService.getAll("invoices"),
+      ]);
+      setPaymentsList(paymentsData);
+      setClients(clientsData);
+      setInvoices(invoicesData);
       setIsLoading(false);
     };
     loadPayments();
@@ -89,20 +96,6 @@ export default function PaymentsPage() {
     const associatedInvoice = invoices.find(inv => inv.invoiceNumber === form.invoiceNumber);
 
     if (editPayment) {
-      // Prior invoice adjustment: subtract old payment amount from previously associated invoice if any
-      const oldInvoice = invoices.find(inv => inv.invoiceNumber === editPayment.invoiceNumber);
-      if (oldInvoice && editPayment.status === "completed") {
-        oldInvoice.paidAmount -= editPayment.amount;
-        if (oldInvoice.paidAmount >= oldInvoice.total) {
-          oldInvoice.status = "paid";
-        } else if (oldInvoice.paidAmount > 0) {
-          oldInvoice.status = "partially paid";
-        } else {
-          oldInvoice.status = "sent";
-        }
-      }
-
-      // Update in database and local state
       const updatedPayment = {
         invoiceId: associatedInvoice?.id || `inv-${Date.now()}`,
         invoiceNumber: form.invoiceNumber || "DIRECT-CR",
@@ -119,16 +112,6 @@ export default function PaymentsPage() {
       setPaymentsList((prev) =>
         prev.map((pay) => (pay.id === editPayment.id ? { ...pay, ...updatedPayment } : pay))
       );
-
-      // Add new payment amount to the newly associated invoice if any
-      if (associatedInvoice && form.status === "completed") {
-        associatedInvoice.paidAmount += Number(form.amount) || 0;
-        if (associatedInvoice.paidAmount >= associatedInvoice.total) {
-          associatedInvoice.status = "paid";
-        } else if (associatedInvoice.paidAmount > 0) {
-          associatedInvoice.status = "partially paid";
-        }
-      }
 
     } else {
       // Add mode
@@ -178,23 +161,6 @@ export default function PaymentsPage() {
 
   const executeDeletePayment = async () => {
     if (!deleteConfirmId) return;
-    const paymentToDelete = paymentsList.find((pay) => pay.id === deleteConfirmId);
-    
-    // Subtract from invoice paid amount
-    if (paymentToDelete && paymentToDelete.status === "completed") {
-      const associatedInvoice = invoices.find(inv => inv.invoiceNumber === paymentToDelete.invoiceNumber);
-      if (associatedInvoice) {
-        associatedInvoice.paidAmount -= paymentToDelete.amount;
-        if (associatedInvoice.paidAmount >= associatedInvoice.total) {
-          associatedInvoice.status = "paid";
-        } else if (associatedInvoice.paidAmount > 0) {
-          associatedInvoice.status = "partially paid";
-        } else {
-          associatedInvoice.status = "sent";
-        }
-      }
-    }
-
     await dbService.delete("payments", deleteConfirmId);
     setPaymentsList((prev) => prev.filter((pay) => pay.id !== deleteConfirmId));
     setDeleteConfirmId(null);

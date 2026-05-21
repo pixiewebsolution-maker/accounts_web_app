@@ -4,10 +4,9 @@ import { useState, useEffect } from "react";
 import { Search, Phone, Mail, Briefcase, Trash2, MapPin, Hash, X, Plus, LayoutGrid, Table, Eye, DollarSign, Calendar } from "lucide-react";
 import Topbar from "@/components/layout/Topbar";
 import { PageWrapper, StatusBadge, ProgressBar } from "@/components/ui";
-import { projects } from "@/lib/data";
 import { dbService } from "@/lib/db";
 import { formatDate, formatCurrency, getInitials, cn } from "@/lib/utils";
-import type { Employee } from "@/lib/data";
+import type { Employee, Project } from "@/lib/data";
 
 const DEPT_COLORS: Record<string, string> = {
   Development: "#6366f1",
@@ -29,9 +28,10 @@ interface EmployeeDrawerProps {
   onClose: () => void;
   onUpdateEmployee: (empId: string, updates: Partial<Employee>) => void;
   onRemoveEmployee: (empId: string) => void;
+  projects: Project[];
 }
 
-function EmployeeDrawer({ employee, onClose, onUpdateEmployee, onRemoveEmployee }: EmployeeDrawerProps) {
+function EmployeeDrawer({ employee, onClose, onUpdateEmployee, onRemoveEmployee, projects }: EmployeeDrawerProps) {
   const [activeTab, setActiveTab] = useState<"overview" | "projects">("overview");
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({
@@ -366,6 +366,7 @@ function EmployeeDrawer({ employee, onClose, onUpdateEmployee, onRemoveEmployee 
 export default function EmployeesPage() {
   const [employeesList, setEmployeesList] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [projectsList, setProjectsList] = useState<Project[]>([]);
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState("all");
   const [view, setView] = useState<"card" | "table">("card");
@@ -387,12 +388,16 @@ export default function EmployeesPage() {
 
   useEffect(() => {
     const loadEmployees = async () => {
-      const data = await dbService.getAll("employees");
-      setEmployeesList(data);
+      const [empData, projectsData] = await Promise.all([
+        dbService.getAll("employees"),
+        dbService.getAll("projects"),
+      ]);
+      setEmployeesList(empData);
+      setProjectsList(projectsData);
       setIsLoading(false);
       setForm((prev) => ({
         ...prev,
-        id: `e${data.length + 1}`,
+        id: `e${empData.length + 1}`,
       }));
     };
     loadEmployees();
@@ -879,6 +884,7 @@ export default function EmployeesPage() {
           onClose={() => setSelectedEmployee(null)}
           onUpdateEmployee={handleUpdateEmployee}
           onRemoveEmployee={handleRemoveEmployee}
+          projects={projectsList}
         />
       )}
     </>

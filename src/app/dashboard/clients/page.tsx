@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Search,
   Plus,
@@ -24,9 +24,9 @@ import {
 } from "lucide-react";
 import Topbar from "@/components/layout/Topbar";
 import { StatusBadge, SectionHeader, PageWrapper, ProgressBar } from "@/components/ui";
-import { clients as initialClients, employees, projects } from "@/lib/data";
+import { dbService } from "@/lib/db";
 import { formatDate, getInitials, cn } from "@/lib/utils";
-import type { Client } from "@/lib/data";
+import type { Client, Employee, Project } from "@/lib/data";
 
 const SERVICES = [
   "Website Development", "E-commerce Development", "Social Media Management",
@@ -74,9 +74,10 @@ interface ClientCardProps {
   onClick: () => void;
   index: number;
   onRemove: (clientId: string) => void;
+  projects: Project[];
 }
 
-function ClientCard({ client, onClick, index, onRemove }: ClientCardProps) {
+function ClientCard({ client, onClick, index, onRemove, projects }: ClientCardProps) {
   const clientProjects = projects.filter((p) => p.clientId === client.id);
   const isHighPriorityUpdate = client.latestUpdate?.toLowerCase().includes("buy domain") || client.latestUpdate?.toLowerCase().includes("connect hosting");
 
@@ -177,9 +178,11 @@ interface ClientDrawerProps {
   onClose: () => void;
   onUpdateClient: (clientId: string, updates: Partial<Client>) => void;
   onRemoveClient: (clientId: string) => void;
+  employees: Employee[];
+  projects: Project[];
 }
 
-function ClientDrawer({ client, onClose, onUpdateClient, onRemoveClient }: ClientDrawerProps) {
+function ClientDrawer({ client, onClose, onUpdateClient, onRemoveClient, employees, projects }: ClientDrawerProps) {
   const [activeTab, setActiveTab] = useState<"overview" | "requirements" | "projects">("overview");
   const [editingUpdate, setEditingUpdate] = useState(false);
   const [tempUpdate, setTempUpdate] = useState(client.latestUpdate || "");
@@ -775,7 +778,10 @@ function ClientDrawer({ client, onClose, onUpdateClient, onRemoveClient }: Clien
 }
 
 export default function ClientsPage() {
-  const [clientsList, setClientsList] = useState<Client[]>(initialClients);
+  const [clientsList, setClientsList] = useState<Client[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -785,7 +791,7 @@ export default function ClientsPage() {
 
   // Form state for adding clients
   const [form, setForm] = useState({
-    id: `c${clientsList.length + 1}`,
+    id: "",
     name: "",
     company: "",
     email: "",
@@ -801,32 +807,54 @@ export default function ClientsPage() {
     assignedEmployees: [] as string[],
   });
 
-  const handleUpdateClient = (clientId: string, updates: Partial<Client>) => {
-    setClientsList(prev => prev.map(c => c.id === clientId ? { ...c, ...updates } : c));
-    
-    // Sync within the original mock data as well to persist during runtime changes
-    const idx = initialClients.findIndex(c => c.id === clientId);
-    if (idx !== -1) {
-      Object.assign(initialClients[idx], updates);
-    }
-  };
-
-  const handleRemoveClient = (clientId: string) => {
-    if (confirm("Are you sure you want to remove this client from the directory?")) {
-      setClientsList(prev => prev.filter((c) => c.id !== clientId));
-      
-      // Also prune from runtime global list
-      const idx = initialClients.findIndex(c => c.id === clientId);
-      if (idx !== -1) {
-        initialClients.splice(idx, 1);
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [clientsData, employeesData, projectsData] = await Promise.all([
+          dbService.getAll("clients"),
+          dbService.getAll("employees"),
+          dbService.getAll("projects"),
+        ]);
+        setClientsList(clientsData);
+        setEmployees(employeesData);
+        setProjects(projectsData);
+        setForm(prev => ({ ...prev, id: `c${clientsData.length + 1}` }));
+      } catch (err) {
+        console.error("Failed to load clients data:", err);
+      } finally {
+        setIsLoading(false);
       }
-      setSelectedClient(null);
+    };
+    loadData();
+  }, []);
+
+  const handleUpdateClient = async (clientId: string, updates: Partial<Client>) => {
+    try {
+      await dbService.update("clients", clientId, updates);
+      setClientsList(prev => prev.map(c => c.id === clientId ? { ...c, ...updates } : c));
+      if (selectedClient && selectedClient.id === clientId) {
+        setSelectedClient(prev => prev ? { ...prev, ...updates } : null);
+      }
+    } catch (err) {
+      console.error("Failed to update client:", err);
     }
   };
 
-  const handleAddClient = (e: React.FormEvent) => {
+  const handleRemoveClient = async (clientId: string) => {
+    if (confirm("Are you sure you want to remove this client from the directory?")) {
+      try {
+        await dbService.delete("clients", clientId);
+        setClientsList(prev => prev.filter((c) => c.id !== clientId));
+        setSelectedClient(null);
+      } catch (err) {
+        console.error("Failed to delete client:", err);
+      }
+    }
+  };
+
+  const handleAddClient = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.id || !form.company || !form.email) return;
+    if (!form.company || !form.email) return;
 
     // Create requirements template
     const reqs: Record<string, boolean> = {};
@@ -835,7 +863,7 @@ export default function ClientsPage() {
     });
 
     const newClient: Client = {
-      id: form.id,
+      id: form.id || `c_${Date.now()}`,
       name: form.name || "—",
       company: form.company,
       email: form.email,
@@ -853,29 +881,32 @@ export default function ClientsPage() {
       requirements: reqs,
     };
 
-    // Update both react state and global mock array
-    const updatedList = [...clientsList, newClient];
-    setClientsList(updatedList);
-    initialClients.push(newClient);
+    try {
+      await dbService.add("clients", newClient);
+      const updatedList = [...clientsList, newClient];
+      setClientsList(updatedList);
 
-    // Reset Form
-    setForm({
-      id: `c${updatedList.length + 1}`,
-      name: "",
-      company: "",
-      email: "",
-      phone: "+91 ",
-      address: "",
-      businessType: "Website Development",
-      latestUpdate: "Project initiated",
-      projectCost: "",
-      paymentReceived: "",
-      paymentStatus: "Pending",
-      status: "active",
-      services: ["Website Development"],
-      assignedEmployees: [],
-    });
-    setIsModalOpen(false);
+      // Reset Form
+      setForm({
+        id: `c_${Date.now()}`,
+        name: "",
+        company: "",
+        email: "",
+        phone: "+91 ",
+        address: "",
+        businessType: "Website Development",
+        latestUpdate: "Project initiated",
+        projectCost: "",
+        paymentReceived: "",
+        paymentStatus: "Pending",
+        status: "active",
+        services: ["Website Development"],
+        assignedEmployees: [],
+      });
+      setIsModalOpen(false);
+    } catch (err) {
+      console.error("Failed to add client:", err);
+    }
   };
 
   const handleToggleFormService = (srv: string) => {
@@ -1024,6 +1055,7 @@ export default function ClientsPage() {
                 index={i}
                 onClick={() => setSelectedClient(client)}
                 onRemove={handleRemoveClient}
+                projects={projects}
               />
             ))}
             {sorted.length === 0 && (
@@ -1355,13 +1387,10 @@ export default function ClientsPage() {
         <ClientDrawer 
           client={selectedClient} 
           onClose={() => setSelectedClient(null)} 
-          onUpdateClient={(clientId, updates) => {
-            handleUpdateClient(clientId, updates);
-            setSelectedClient(prev => prev ? { ...prev, ...updates } : null);
-          }}
-          onRemoveClient={(clientId) => {
-            handleRemoveClient(clientId);
-          }}
+          onUpdateClient={handleUpdateClient}
+          onRemoveClient={handleRemoveClient}
+          employees={employees}
+          projects={projects}
         />
       )}
     </>

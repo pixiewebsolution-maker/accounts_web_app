@@ -4,10 +4,9 @@ import { useState, useEffect } from "react";
 import { Search, TrendingDown, ShoppingCart, Server, Monitor, Megaphone, Building, CreditCard, Plus, X, Trash2, Edit } from "lucide-react";
 import Topbar from "@/components/layout/Topbar";
 import { StatusBadge, SectionHeader, PageWrapper } from "@/components/ui";
-import { clients } from "@/lib/data";
 import { dbService } from "@/lib/db";
 import { formatDate, formatCurrency } from "@/lib/utils";
-import type { Expense } from "@/lib/data";
+import type { Expense, Client } from "@/lib/data";
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   hosting: <Server size={14} />,
@@ -33,6 +32,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 export default function ExpensesPage() {
   const [expensesList, setExpensesList] = useState<Expense[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -53,8 +53,12 @@ export default function ExpensesPage() {
 
   useEffect(() => {
     const loadExpenses = async () => {
-      const data = await dbService.getAll("expenses");
-      setExpensesList(data);
+      const [expensesData, clientsData] = await Promise.all([
+        dbService.getAll("expenses"),
+        dbService.getAll("clients"),
+      ]);
+      setExpensesList(expensesData);
+      setClients(clientsData);
       setIsLoading(false);
     };
     loadExpenses();
